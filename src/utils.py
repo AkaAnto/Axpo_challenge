@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime
 from typing import Optional, List
 
@@ -5,7 +6,7 @@ import requests
 import re
 
 from fastapi import HTTPException
-from pydantic import BaseModel, field_validator, ConfigDict
+from pydantic import BaseModel, field_validator
 from functools import lru_cache
 from enum import Enum
 
@@ -55,8 +56,6 @@ class AEMETRequest(BaseModel):
             return response, False
 
 
-
-
 class APIRequest(BaseModel):
     station_id: StationEnum
     start_date: str
@@ -89,3 +88,9 @@ class APIRequest(BaseModel):
                 raise HTTPException(status_code=400,
                                     detail=f"Invalid data type. Allowed values are: {', '.join(VALID_DATA_TYPES)}")
         return value
+
+
+def generate_cache_key(start_time: str, end_time: str, station: str) -> str:
+    key_string = f"{start_time}-{end_time}-{station}"
+    hash_object = hashlib.md5(key_string.encode())
+    return hash_object.hexdigest()

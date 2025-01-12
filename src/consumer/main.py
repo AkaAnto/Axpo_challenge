@@ -1,11 +1,10 @@
 import requests
 import math
 from uuid import uuid4
-from datetime import datetime
 
 from pydantic import BaseModel
 
-from src.utils import AEMETRequest, StationEnum
+from src.utils import AEMETRequest, StationEnum, generate_cache_key
 from src.database.models import ApiResponse
 
 
@@ -15,17 +14,16 @@ class NoDataResponse(BaseModel):
 
 
 class AEMETConsumer(BaseModel):
-    start_date: str = "2024-03-15T14:30:00UTC"
-    end_date: str = "2024-04-15T14:30:00UTC"
-    station: StationEnum = StationEnum.STATION_89070
+    start_date: str
+    end_date: str
+    station: StationEnum
 
     def collect_data(self):
         initial_request_response, success = AEMETRequest(start_date=self.start_date, end_date=self.end_date, station=self.station).get()
-        print(initial_request_response, success)
         if success is True and initial_request_response.get('datos', None):
-            existing_record_list = None
-            # existing_record_list = ApiResponse.get_saved_records_by_json_reference(json_reference)
-            if existing_record_list is None:
+            cache_key = generate_cache_key(self.start_date, self.end_date, self.station)
+            existing_record_list = ApiResponse.get_saved_records_by_cache_key(cache_key)
+            if existing_record_list is None or len(existing_record_list) < 1:
                 data_response = requests.get(initial_request_response.get('datos'))
                 new_record_list = []
                 for record in data_response.json():
@@ -39,10 +37,10 @@ class AEMETConsumer(BaseModel):
                             date_time=record.get('fhora'),
                             temperature=temperature,
                             pressure=pressure,
-                            speed=speed
+                            speed=speed,
+                            cache_key=cache_key
                         )
                         new_record_list.append(new_record)
                 return new_record_list, True
-            print("Found the records on the db")
             return existing_record_list, False
         return NoDataResponse(**initial_request_response), False

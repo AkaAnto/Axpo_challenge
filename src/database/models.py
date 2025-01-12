@@ -1,11 +1,12 @@
 from sqlmodel import Field, SQLModel, select
-from datetime import datetime
+
 
 from src.database import get_session
 
 
 class ApiResponse(SQLModel, table=True):
     id: str = Field(default=None, primary_key=True)
+    cache_key: str
     station: str
     date_time: str
     temperature: float
@@ -26,6 +27,6 @@ class ApiResponse(SQLModel, table=True):
 
 
     @staticmethod
-    def get_saved_records_by_datetime(start_time, end_time):
+    def get_saved_records_by_cache_key(cache_key):
         session = next(get_session())
-        return session.exec(select(ApiResponse).where(ApiResponse.json_reference == json_reference)).all()
+        return session.exec(select(ApiResponse).where(ApiResponse.cache_key == cache_key)).all()
